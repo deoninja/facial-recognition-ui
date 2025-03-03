@@ -1,66 +1,118 @@
-import React, { useRef, useState } from "react";
+import React, { useState, useRef } from "react";
 import Webcam from "react-webcam";
-import axios from "axios";
-import "./FaceVerification.css"; // Import CSS file
-
-const videoConstraints = {
-  width: 480,
-  height: 480,
-  facingMode: "user",
-};
+import SignatureCanvas from "react-signature-canvas";
+import "./FaceVerification.css";
 
 const FaceVerification = () => {
-  const webcamRef = useRef(null);
+  const [showFaceModal, setShowFaceModal] = useState(false);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
-  const [verificationResult, setVerificationResult] = useState("");
+  const webcamRef = useRef(null);
+  const signatureRef = useRef(null);
+  const [signatureImage, setSignatureImage] = useState(null);
+
+  // Open and close modals
+  const toggleFaceModal = () => setShowFaceModal(!showFaceModal);
+  const toggleSignatureModal = () => setShowSignatureModal(!showSignatureModal);
 
   // Capture image from webcam
-  const capture = () => {
+  const captureImage = () => {
     const imageSrc = webcamRef.current.getScreenshot();
     setCapturedImage(imageSrc);
+    toggleFaceModal();
   };
 
-  // Send the image to Face Verification API
-  const verifyFace = async () => {
-    if (!capturedImage) return alert("Capture an image first!");
-
-    // Convert Base64 to Blob
-    const blob = await fetch(capturedImage).then((res) => res.blob());
-    const formData = new FormData();
-    formData.append("image", blob);
-
-    try {
-      const response = await axios.post("YOUR_FACE_VERIFICATION_API_ENDPOINT", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      setVerificationResult(response.data.message || "Face Verified Successfully!");
-    } catch (error) {
-      setVerificationResult("Verification Failed");
-      console.error("Error:", error);
+  // Save signature as an image and close modal
+  const saveSignature = () => {
+    if (signatureRef.current.isEmpty()) {
+      alert("Please sign before saving.");
+      return;
     }
+    setSignatureImage(signatureRef.current.toDataURL("image/png"));
+    toggleSignatureModal(); // Close the modal after saving
+  };
+
+  // Clear the signature pad
+  const clearSignature = () => {
+    signatureRef.current.clear();
   };
 
   return (
     <div className="container">
-      <h2>Face Verification</h2>
-      <div className="webcam-container">
-        <Webcam
-          ref={webcamRef}
-          screenshotFormat="image/jpeg"
-          videoConstraints={videoConstraints}
-          className="webcam"
-        />
-        <div className="face-outline"></div>
-      </div>
+      <h2>Face Verification & E-Signature</h2>
 
-      <button onClick={capture} className="btn capture-btn">Capture Image</button>
+      {/* Buttons to Open Modals */}
+      <button className="open-modal-btn" onClick={toggleFaceModal}>
+        Open Face Verification
+      </button>
+      <button className="open-modal-btn" onClick={toggleSignatureModal}>
+        Open E-Signature
+      </button>
 
-      {capturedImage && <img src={capturedImage} alt="Captured" className="captured-image" />}
+      {/* Face Verification Modal */}
+      {showFaceModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <span className="close-btn" onClick={toggleFaceModal}>&times;</span>
+            <h3>Face Verification</h3>
 
-      <button onClick={verifyFace} className="btn verify-btn">Verify Face</button>
+            {/* Webcam Container */}
+            <div className="webcam-container">
+              <div className="webcam-wrapper">
+                <Webcam 
+                  ref={webcamRef} 
+                  screenshotFormat="image/png" 
+                  className="webcam"
+                  videoConstraints={{
+                    width: 1280,
+                    height: 720,
+                    facingMode: "user",
+                  }}
+                />
+              </div>
+            </div>
+            <button className="capture-btn" onClick={captureImage}>
+              Capture Face
+            </button>
+          </div>
+        </div>
+      )}
 
-      {verificationResult && <p className="result">{verificationResult}</p>}
+      {/* E-Signature Modal */}
+      {showSignatureModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <span className="close-btn" onClick={toggleSignatureModal}>&times;</span>
+            <h3>Signature</h3>
+
+            <div className="signature-container">
+              <SignatureCanvas 
+                ref={signatureRef}
+                canvasProps={{ className: "signature-pad" }}
+              />
+              <div className="signature-buttons">
+                <button className="clear-btn" onClick={clearSignature}>Clear</button>
+                <button className="save-btn" onClick={saveSignature}>Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Display Captured Face & Signature */}
+      {capturedImage && (
+        <div>
+          <h4>Captured Face:</h4>
+          <img src={capturedImage} alt="Captured Face" className="captured-image" />
+        </div>
+      )}
+
+      {signatureImage && (
+        <div>
+          <h4>Saved Signature:</h4>
+          <img src={signatureImage} alt="Signature" className="signature-image" />
+        </div>
+      )}
     </div>
   );
 };
